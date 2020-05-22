@@ -1,5 +1,5 @@
 bitter_src = files(
-    'input_device.c',
+    'keyboard.c',
     'main.c',
     'node.c',
     'output.c',

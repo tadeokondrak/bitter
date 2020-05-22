@@ -6,7 +6,9 @@
 #include <wlr/types/wlr_compositor.h>
 #include <wlr/types/wlr_data_device.h>
 #include <wlr/types/wlr_xdg_shell.h>
+#include <wlr/types/wlr_cursor.h>
 #include <wlr/types/wlr_output_layout.h>
+#include <wlr/types/wlr_seat.h>
 #include <wlr/util/log.h>
 
 Server *server_create(void) {
@@ -16,6 +18,9 @@ Server *server_create(void) {
     struct wlr_renderer *renderer = wlr_backend_get_renderer(backend);
     struct wlr_output_layout *output_layout = wlr_output_layout_create();
     struct wlr_xdg_shell *xdg_shell = wlr_xdg_shell_create(display);
+    struct wlr_cursor *cursor = wlr_cursor_create();
+    struct wlr_seat *seat = wlr_seat_create(display, "seat0");
+    wlr_cursor_attach_output_layout(cursor, output_layout);
     wlr_renderer_init_wl_display(renderer, display);
     wlr_compositor_create(display, renderer);
     wlr_data_device_manager_create(display);
@@ -25,10 +30,13 @@ Server *server_create(void) {
         .renderer = renderer,
         .output_layout = output_layout,
         .xdg_shell = xdg_shell,
-        .input_devices = {
-            .prev = &srv->input_devices,
-            .next = &srv->input_devices,
+        .cursor = cursor,
+        .seat = seat,
+        .keyboards = {
+            .prev = &srv->keyboards,
+            .next = &srv->keyboards,
         },
+
         .outputs = {
             .prev = &srv->outputs,
             .next = &srv->outputs,
@@ -55,6 +63,7 @@ bool server_run(Server *srv) {
 }
 
 void server_destroy(Server *srv) {
+    wlr_cursor_destroy(srv->cursor);
     wlr_output_layout_destroy(srv->output_layout);
     wl_display_destroy_clients(srv->display);
     wl_display_destroy(srv->display);
@@ -62,7 +71,27 @@ void server_destroy(Server *srv) {
 }
 
 void server_new_input(Server *srv, struct wlr_input_device *device) {
-    input_device_create(srv, device);
+    switch (device->type) {
+        case WLR_INPUT_DEVICE_KEYBOARD: {
+            keyboard_create(srv, device);
+        }
+        case WLR_INPUT_DEVICE_POINTER: {
+            wlr_cursor_attach_input_device(srv->cursor, device);
+        }
+        case WLR_INPUT_DEVICE_TOUCH: {
+            // TODO
+        }
+        case WLR_INPUT_DEVICE_TABLET_TOOL: {
+            // TODO
+        }
+        case WLR_INPUT_DEVICE_TABLET_PAD: {
+            // TODO
+        }
+        case WLR_INPUT_DEVICE_SWITCH: {
+            // TODO
+        }
+    }
+    server_update_capabilities(srv);
 }
 
 void server_new_output(Server *srv, struct wlr_output *output) {
@@ -76,4 +105,11 @@ void server_new_xdg_surface(Server *srv, struct wlr_xdg_surface *surface) {
         node_insert(srv->focused, (View *)surf);
     else
         assert(!"TODO: non-toplevel xdg surfaces");
+}
+
+void server_update_capabilities(Server *srv) {
+    uint32_t capabilities = WL_SEAT_CAPABILITY_POINTER;
+    if (!wl_list_empty(&srv->keyboards))
+        capabilities |= WL_SEAT_CAPABILITY_KEYBOARD;
+    wlr_seat_set_capabilities(srv->seat, capabilities);
 }

@@ -1,6 +1,7 @@
 #include "bitter.h"
 #include <stdlib.h>
 #include <assert.h>
+#include <wlr/types/wlr_seat.h>
 
 static ViewImpl xdg_surface_impl;
 
@@ -16,6 +17,9 @@ XdgSurface *xdg_surface_create(Server *srv, struct wlr_xdg_surface *surface) {
         .on_destroy.notify = xdg_surface_on_destroy,
     };
     wl_signal_add(&surf->surface->events.destroy, &surf->on_destroy);
+    struct wlr_keyboard *keyboard = wlr_seat_get_keyboard(srv->seat);
+    wlr_seat_keyboard_notify_enter(srv->seat, surface->surface, keyboard->keycodes,
+        keyboard->num_keycodes, &keyboard->modifiers);
     return surf;
 }
 
