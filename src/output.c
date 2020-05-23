@@ -68,20 +68,32 @@ struct SurfaceRenderData {
     struct timespec *when;
 };
 
+static int int_min(int a, int b) {
+    return a < b ? a : b;
+}
+
 static void render_view(struct wl_list *link, struct wlr_box *box, void *data) {
     View *view = wl_container_of(link, view, tiled.link); // TODO
+    XdgSurface *xdg_surface = (XdgSurface *)view;
     ViewRenderData *vdata = data;
     SurfaceRenderData sdata = {
         .view = view,
         .out = vdata->out,
-        .where = box,
+        .where = &(struct wlr_box) {
+            // TODO: this seems like a hack, but it makes alacritty's csd work in tiling.
+            // hopefully it actually works everywhere.
+            .x = box->x - int_min(0, xdg_surface->surface->geometry.x),
+            .y = box->y - int_min(0, xdg_surface->surface->geometry.y),
+            .width = box->width,
+            .height = box->height,
+        },
         .when = vdata->when,
     };
     view_for_each_surface(view, render_surface, &sdata);
 }
 
-static void render_surface(struct wlr_surface *surface,
-    int sx, int sy, void *data)
+static void render_surface(
+    struct wlr_surface *surface, int sx, int sy, void *data)
 {
     SurfaceRenderData *sdata = data;
     struct wlr_texture *texture = wlr_surface_get_texture(surface);
@@ -111,4 +123,9 @@ static void render_surface(struct wlr_surface *surface,
         sdata->out->srv->renderer, texture, matrix, 1);
 
     wlr_surface_send_frame_done(surface, sdata->when);
+}
+
+void output_configure(Output *out) {
+    struct wlr_box *output_box = wlr_output_layout_get_box(out->srv->output_layout, out->output);
+    node_configure(out->root, output_box);
 }

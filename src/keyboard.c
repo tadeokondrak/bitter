@@ -23,8 +23,8 @@ Keyboard *keyboard_create(Server *srv, struct wlr_input_device *device) {
         .srv = srv,
         .device = device,
         .on_key.notify = keyboard_on_key,
-        .on_destroy.notify = keyboard_on_destroy,
         .on_modifiers.notify = keyboard_on_modifiers,
+        .on_destroy.notify = keyboard_on_destroy,
     };
     wl_list_insert(&srv->keyboards, &kb->link);
     wl_signal_add(&kb->device->keyboard->events.key, &kb->on_key);
@@ -47,6 +47,9 @@ void keyboard_modifiers(Keyboard *kb, void *data) {
 }
 
 void keyboard_destroy(Keyboard *kb, void *data) {
+    wl_list_remove(&kb->on_key.link);
+    wl_list_remove(&kb->on_modifiers.link);
+    wl_list_remove(&kb->on_destroy.link);
     wl_list_remove(&kb->link);
     free(kb);
 }

@@ -21,12 +21,15 @@ typedef struct Server {
     struct wlr_output_layout *output_layout;
     struct wlr_xdg_shell *xdg_shell;
     struct wlr_cursor *cursor;
+    struct wlr_xcursor_manager *xcursor_manager;
     struct wlr_seat *seat;
     struct wl_list keyboards;
     struct wl_list outputs;
     struct wl_listener on_new_input;
     struct wl_listener on_new_output;
     struct wl_listener on_new_xdg_surface;
+    struct wl_listener on_cursor_motion;
+    struct wl_listener on_cursor_button;
     struct Node *focused;
     // TODO: make a linked list of last focused nodes
 } Server;
@@ -37,29 +40,34 @@ void server_destroy(Server *);
 void server_new_input(Server *, struct wlr_input_device *);
 void server_new_output(Server *, struct wlr_output *);
 void server_new_xdg_surface(Server *, struct wlr_xdg_surface *);
+void server_cursor_motion(Server *, struct wlr_event_pointer_motion *);
+void server_cursor_button(Server *, struct wlr_event_pointer_button *);
 void server_update_capabilities(Server *);
+void server_reconfigure_outputs(Server *);
 
 NOTIFY(Server, server, new_input)
 NOTIFY(Server, server, new_output)
 NOTIFY(Server, server, new_xdg_surface)
+NOTIFY(Server, server, cursor_motion)
+NOTIFY(Server, server, cursor_button)
 
 typedef struct Keyboard {
     Server *srv;
     struct wlr_input_device *device;
     struct wl_listener on_key;
-    struct wl_listener on_destroy;
     struct wl_listener on_modifiers;
+    struct wl_listener on_destroy;
     struct wl_list link;
 } Keyboard;
 
 Keyboard *keyboard_create(Server *, struct wlr_input_device *);
 void keyboard_key(Keyboard *, struct wlr_event_keyboard_key *);
-void keyboard_destroy(Keyboard *, void *);
 void keyboard_modifiers(Keyboard *, void *);
+void keyboard_destroy(Keyboard *, void *);
 
-NOTIFY(Keyboard, keyboard, destroy)
 NOTIFY(Keyboard, keyboard, key)
 NOTIFY(Keyboard, keyboard, modifiers)
+NOTIFY(Keyboard, keyboard, destroy)
 
 typedef struct Output {
     Server *srv;
@@ -72,7 +80,7 @@ typedef struct Output {
 Output *output_create(Server *, struct wlr_output *);
 void output_destroy(Output *);
 void output_frame(Output *, void *data);
-void output_render(Output *, struct timespec *when, struct wlr_box *where);
+void output_configure(Output *);
 
 NOTIFY(Output, output, frame)
 
@@ -93,10 +101,12 @@ typedef struct View {
 
 typedef struct ViewImpl {
     uint32_t (*set_size)(View *, int width, int height);
+    uint32_t (*set_tiled)(View *, bool);
     void (*for_each_surface)(View *, wlr_surface_iterator_func_t, void *data);
 } ViewImpl;
 
 uint32_t view_set_size(View *, int width, int height);
+uint32_t view_set_tiled(View *, bool);
 void view_for_each_surface(View *, wlr_surface_iterator_func_t, void *data);
 
 typedef struct XdgSurface {
@@ -135,3 +145,4 @@ Node *node_insert(Node *, View *);
 void node_walk(Node *,
     void (*visit)(struct wl_list *link, struct wlr_box *box, void *data),
     struct wlr_box *box, void *data);
+void node_configure(Node *n, struct wlr_box *);

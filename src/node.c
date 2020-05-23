@@ -22,7 +22,7 @@ Node *node_insert(Node *n, View *view) {
         }
         case NodeTerminalHorizontal:
         case NodeTerminalVertical: {
-            wl_list_insert(&n->children, &view->tiled.link); // TODO
+            wl_list_insert(&n->children, &view->tiled.link);
             return n;
         }
     }
@@ -94,4 +94,13 @@ void node_walk(Node *n,
             break;
         }
     }
+}
+
+static void node_configure_visit(struct wl_list *link, struct wlr_box *box, void *data) {
+    View *view = wl_container_of(link, view, tiled.link);
+    view_set_size(view, box->width, box->height);
+}
+
+void node_configure(Node *n, struct wlr_box *box) {
+    node_walk(n, node_configure_visit, box, NULL);
 }

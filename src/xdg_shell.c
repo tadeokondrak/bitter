@@ -37,6 +37,11 @@ static uint32_t set_size_impl(View *view, int width, int height) {
     return wlr_xdg_toplevel_set_size(
         xdg_surface_from_view(view)->surface, width, height);
 }
+
+static uint32_t set_tiled_impl(View *view, bool tiled) {
+    return wlr_xdg_toplevel_set_tiled(
+        xdg_surface_from_view(view)->surface, tiled);
+}
     
 static void for_each_surface_impl(View *view,
     wlr_surface_iterator_func_t iter, void *data)
@@ -47,5 +52,6 @@ static void for_each_surface_impl(View *view,
 
 static ViewImpl xdg_surface_impl = {
     .set_size = set_size_impl,
+    .set_tiled = set_tiled_impl,
     .for_each_surface = for_each_surface_impl,
 };
